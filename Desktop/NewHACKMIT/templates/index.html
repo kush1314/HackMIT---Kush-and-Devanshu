@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Watermark Demo</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>AI Watermark Demo</h1>
+
+        <section class="card">
+            <h2>Encode Watermark</h2>
+            <form method="POST" action="/encode" enctype="multipart/form-data">
+                <input type="text" name="prompt" placeholder="Enter prompt" required>
+                <input type="file" name="file" accept="image/png" required>
+                <button type="submit">Encode & Download</button>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>Verify Watermark</h2>
+            <form method="POST" action="/verify" enctype="multipart/form-data">
+                <input type="file" name="file" accept="image/png" required>
+                <button type="submit">Verify</button>
+            </form>
+        </section>
+
+        {% if result %}
+        <div class="result">
+            <p>{{ result }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- <section class="card">
+        <h2>Highlighted Watermark</h2>
+        <img src="{{ highlighted_image }}" alt="Highlighted Watermark" style="max-width:100%; border:1px solid #ccc; border-radius:8px;">
+    </section> -->
+</body>
+</html>
