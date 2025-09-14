@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeStamp – AI Image Generator & Watermark Detector</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="shell">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <div class="title">SafeStamp</div>
+                <div class="subtitle">AI Detection & Watermarking</div>
+                <div class="stat-container">
+                    <div id="currentStat" class="stat-text">Loading interesting fact...</div>
+                    <button id="refreshStat" class="refresh-btn" title="Get new fact">🔄</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card (chat + input) -->
+        <div class="card">
+            <!-- Chat area -->
+            <div id="chat" class="chat-container">
+                <div class="message assistant">
+                    <div class="bubble">
+                        Hi! I'm ready. Describe an image and I'll make it with a watermark, or upload an image to check if it's AI-generated.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input area -->
+            <div class="input">
+                <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+                <button id="uploadBtn" class="btn upload-btn" title="Upload image to check watermark">📁</button>
+                <input type="text" id="messageInput" placeholder="Describe anything to generate…" autofocus>
+                <button id="sendBtn" class="btn btn-primary">Send</button>
+                <button id="clearBtn" class="btn">Clear</button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div>Made for HackMIT</div>
+            <div class="pill">Ready</div>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const imageUpload = document.getElementById('imageUpload');
+
+        let uploadedImageData = null;
+
+        function addMessage(content, isUser = false, isImage = false, imageData = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
+
+            if (isImage && imageData) {
+                messageDiv.innerHTML = `
+                    <div class="bubble">
+                        ${content}
+                        <br><br>
+                        <img src="${imageData}" alt="Generated image" style="max-width: 100%; border-radius: 8px; margin-top: 8px;">
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `<div class="bubble">${content}</div>`;
+            }
+
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function addLoadingMessage() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message assistant loading-message';
+            loadingDiv.innerHTML = '<div class="bubble">Generating…</div>';
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return loadingDiv;
+        }
+
+        function removeLoadingMessage(loadingDiv) {
+            if (loadingDiv && loadingDiv.parentNode) {
+                loadingDiv.parentNode.removeChild(loadingDiv);
+            }
+        }
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message && !uploadedImageData) return;
+
+            if (message) {
+                addMessage(message, true);
+                messageInput.value = '';
+            }
+
+            if (uploadedImageData) {
+                addMessage('📁 Uploaded image for watermark detection', true);
+            }
+
+            const loadingDiv = addLoadingMessage();
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        uploaded_image: uploadedImageData
+                    })
+                });
+
+                const data = await response.json();
+                removeLoadingMessage(loadingDiv);
+
+                if (data.error) {
+                    addMessage(`❌ Error: ${data.error}`);
+                } else if (data.type === 'image') {
+                    addMessage(data.content, false, true, data.image);
+                } else {
+                    addMessage(data.content);
+                }
+            } catch (error) {
+                removeLoadingMessage(loadingDiv);
+                addMessage(`❌ Error: ${error.message}`);
+            }
+
+            uploadedImageData = null;
+            uploadBtn.style.backgroundColor = '';
+            uploadBtn.title = 'Upload image to check watermark';
+        }
+
+        // Event listeners
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        clearBtn.addEventListener('click', () => {
+            chatContainer.innerHTML = `
+                <div class="message assistant">
+                    <div class="bubble">
+                        Hi! I'm ready. Describe an image and I'll make it with a watermark, or upload an image to check if it's AI-generated.
+                    </div>
+                </div>
+            `;
+            uploadedImageData = null;
+            uploadBtn.style.backgroundColor = '';
+            uploadBtn.title = 'Upload image to check watermark';
+        });
+
+        uploadBtn.addEventListener('click', () => {
+            imageUpload.click();
+        });
+
+        imageUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    uploadedImageData = e.target.result;
+                    uploadBtn.style.backgroundColor = '#4CAF50';
+                    uploadBtn.title = 'Image ready for watermark check - click Send';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Statistics functionality
+        async function loadNewStat() {
+            const statElement = document.getElementById('currentStat');
+            const refreshBtn = document.getElementById('refreshStat');
+
+            // Show loading state
+            refreshBtn.style.transform = 'rotate(360deg)';
+            statElement.style.opacity = '0.5';
+            statElement.textContent = 'Loading new fact...';
+
+            try {
+                const response = await fetch('/api/get_stat', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    statElement.textContent = 'Unable to load fact. Try again!';
+                } else {
+                    statElement.textContent = data.stat;
+                }
+            } catch (error) {
+                statElement.textContent = 'Unable to load fact. Try again!';
+            }
+
+            // Reset visual state
+            setTimeout(() => {
+                statElement.style.opacity = '1';
+                refreshBtn.style.transform = 'rotate(0deg)';
+            }, 300);
+        }
+
+        // Load initial stat and set up refresh button
+        document.addEventListener('DOMContentLoaded', function() {
+            loadNewStat();
+
+            document.getElementById('refreshStat').addEventListener('click', loadNewStat);
+        });
+    </script>
+</body>
+</html>
