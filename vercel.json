@@ -1,7 +1,7 @@
 {
   "functions": {
     "Desktop/src/api/index.py": {
-      "runtime": "python3.9"
+      "runtime": "@vercel/python"
     }
   },
   "rewrites": [
