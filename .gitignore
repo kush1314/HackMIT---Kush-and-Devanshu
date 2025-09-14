@@ -1,0 +1,4 @@
+.env
+venv/
+__pycache__
+generated_image_17582044.png
